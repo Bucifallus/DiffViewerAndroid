@@ -23,7 +23,7 @@ public class ReconstructSideBySideGenerator implements ISideBySideDiffGenerator 
     }
 
     private class Line {
-        public List<Diff> getDiffs() {
+        List<Diff> getDiffs() {
             return delDiffs;
         }
 
@@ -33,7 +33,7 @@ public class ReconstructSideBySideGenerator implements ISideBySideDiffGenerator 
 
         List<Diff> delDiffs = new LinkedList<>();
 
-        public void clear() {
+        void clear() {
             getDiffs().clear();
         }
 
@@ -48,9 +48,6 @@ public class ReconstructSideBySideGenerator implements ISideBySideDiffGenerator 
         }
     }
 
-    String[] leftLines;
-    String[] rightLines;
-
     @Override
     public SideBySideDiffs getDiffs(List<Diff> diffs) {
         SideBySideDiffs sDiffs = new SideBySideDiffs();
@@ -61,11 +58,9 @@ public class ReconstructSideBySideGenerator implements ISideBySideDiffGenerator 
 
         LinkedList<Diff> delDiffs = new LinkedList<>();
         LinkedList<Diff> insDiffs = new LinkedList<>();
-        int delCounter = 0;
-        int insCounter = 0;
+
         //loop through diffs, process on EQUAL diff
         while (thisDiff != null) {
-            //thisDiff = pointer.previous();
             switch (thisDiff.operation) {
                 case DELETE:
                     delDiffs.add(thisDiff);
@@ -80,7 +75,6 @@ public class ReconstructSideBySideGenerator implements ISideBySideDiffGenerator 
                 case VIRTUAL:
                     break;
                 case LAST:
-                    //addSDiff(sDiffs, thisDiff, thisDiff);
                     break;
             }
             thisDiff = pointer.hasNext() ? pointer.next() : null;
@@ -99,7 +93,6 @@ public class ReconstructSideBySideGenerator implements ISideBySideDiffGenerator 
             Line dummy = new Line();
             dummy.getDiffs().add(new Diff(VIRTUAL, ""));
             Line left = i >= leftLines.size() ? dummy : leftLines.get(i);
-            Line right = i >= rightLines.size() ? dummy : rightLines.get(i);
 
             if (left.getDiffs().get(0).operation == EQUAL) {
                 //could be anchor, search for it in right
@@ -118,7 +111,6 @@ public class ReconstructSideBySideGenerator implements ISideBySideDiffGenerator 
         for (int i = 0; i < max; i++) {
             Line dummy = new Line();
             dummy.getDiffs().add(new Diff(VIRTUAL, ""));
-            Line left = i >= leftLines.size() ? dummy : leftLines.get(i);
             Line right = i >= rightLines.size() ? dummy : rightLines.get(i);
 
             if (right.getDiffs().get(0).operation == EQUAL) {
@@ -190,13 +182,6 @@ public class ReconstructSideBySideGenerator implements ISideBySideDiffGenerator 
                     Diff prevDiff = pointer.previous();
                     prevEndsWithNewLine = prevDiff.text.endsWith(StringUtils.NEWLINE);
                     pointer.next();
-                }
-
-                boolean nextStartsWithNewLine = false;
-                if (pointer.hasNext()) {
-                    Diff nextDiff = pointer.next();
-                    nextStartsWithNewLine = nextDiff.text.startsWith(StringUtils.NEWLINE);
-                    pointer.previous();
                 }
 
                 //if previous is not finished add to temp line first line

@@ -22,7 +22,8 @@ public class SideBySideGenerator implements ISideBySideDiffGenerator {
 
         //loop through diffs, process on EQUAL diff
         while (thisDiff != null) {
-            if (thisDiff.operation == diff_match_patch.Operation.EQUAL || thisDiff.operation == diff_match_patch.Operation.LAST) {
+            if (thisDiff.operation == diff_match_patch.Operation.EQUAL ||
+                thisDiff.operation == diff_match_patch.Operation.LAST) {
                 //can have only delete, only insert
                 if (tempDiffs.size() == 1) {
                     diff_match_patch.Diff diff = tempDiffs.get(0);
@@ -85,8 +86,6 @@ public class SideBySideGenerator implements ISideBySideDiffGenerator {
             thisDiff = pointer.hasNext() ? pointer.next() : null;
         }
 
-
-
         return sDiffs;
     }
 
@@ -105,5 +104,4 @@ public class SideBySideGenerator implements ISideBySideDiffGenerator {
             diffs.add(doNotReverse ? diffs.size() : diffs.size() - 1, newDelDiff); // add before changed text
         }
     }
-
 }

@@ -45,7 +45,7 @@ import java.util.regex.Pattern;
  * Class containing the diff, match and patch methods.
  * Also contains the behaviour settings.
  */
-public class diff_match_patch {
+public class diff_match_patch implements Idiff_match_patch {
 
   // Defaults.
   // Set these on your diff_match_patch instance to override the defaults.
@@ -126,6 +126,7 @@ public class diff_match_patch {
    * @param text2 New string to be diffed.
    * @return Linked List of Diff objects.
    */
+  @Override
   public LinkedList<Diff> diff_main(String text1, String text2) {
     return diff_main(text1, text2, false);
   }
@@ -139,6 +140,7 @@ public class diff_match_patch {
    *     If true, then run a faster slightly less optimal diff.
    * @return Linked List of Diff objects.
    */
+  @Override
   public LinkedList<Diff> diff_main(String text1, String text2,
                                     boolean checklines) {
     // Set a deadline by which time the diff must be complete.

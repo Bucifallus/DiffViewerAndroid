@@ -157,7 +157,7 @@ public class DiffGenerator implements IDiffGenerator {
         }
 
         LinkedList<Diff> diffs = dmp.diff_main(leftText, rightText, false);
-        //dmp.diff_cleanupSemantic(diffs);
+        dmp.diff_cleanupEfficiency(diffs);
 
         diffs.add(new Diff(LAST, ""));
 

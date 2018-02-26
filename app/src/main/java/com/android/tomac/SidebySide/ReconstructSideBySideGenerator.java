@@ -175,33 +175,6 @@ public class ReconstructSideBySideGenerator implements ISideBySideDiffGenerator 
         }
     }
 
-    private void allign(List<Line> rightLines, int i, Line left, Line right, Operation oper, Operation oposOper) {
-        if (left.getDiffs().size() == 1 && left.getDiffs().get(0).operation == oper) {
-            if (left.getDiffs().get(0) != right.getDiffs().get(0)) {
-                Line l = new Line();
-                l.getDiffs().add(new Diff(VIRTUAL, ""));
-                rightLines.add(i, l);
-            }
-        } else if (left.getDiffs().size() > 1 && right.getDiffs().size() == 1 && right.getDiffs().get(0).operation != VIRTUAL) {
-            boolean insertPresent = false;
-            for (Diff r:
-                 right.getDiffs()) {
-                insertPresent = r.operation == oposOper;
-                if (insertPresent) {
-                    break;
-                }
-            }
-
-            if (!insertPresent) {
-                Line l = new Line();
-                l.getDiffs().add(new Diff(VIRTUAL, ""));
-                rightLines.add(i, l);
-            }
-        }
-    }
-
-
-
     private List<Line> getLines(LinkedList<Diff> delDiffs) {
         List<Line> lines = new LinkedList<>();
         Line l = new Line();
@@ -238,9 +211,7 @@ public class ReconstructSideBySideGenerator implements ISideBySideDiffGenerator 
                         l.clear();
                     } else if (i == split.size() - 1 && !endWithNewLine) {
                         l.getDiffs().add(new Diff(del.operation, split.get(i).replaceAll(StringUtils.NEWLINE, "")));
-                    } /*else if (i == 0 && prevEndsWithNewLine && split.get(i).length() != 0) {
-                        lines.get(lines.size() - 1).getDiffs().add(new Diff(del.operation, split.get(i)));
-                    } */else {
+                    } else {
                         l.getDiffs().add(new Diff(del.operation, split.get(i).replaceAll(StringUtils.NEWLINE, "")));
                         Line tempL = new Line();
                         tempL.getDiffs().addAll(l.getDiffs());
@@ -251,16 +222,6 @@ public class ReconstructSideBySideGenerator implements ISideBySideDiffGenerator 
 
                 lineIsCompleted = endWithNewLine;
             } else {
-              /*  if (pointer.hasPrevious() && !prevEndsWithNewLine) {//do not reset
-                    Diff prevDiff = pointer.previous();
-                    prevEndsWithNewLine = prevDiff.text.endsWith(NEWLINE);
-                    pointer.next();
-                }
-                if (prevEndsWithNewLine) {
-                    lines.get(lines.size() - 1).getDiffs().add(del);
-                } else {
-                    l.getDiffs().add(del);
-                }*/
 
                 l.getDiffs().add(new Diff(del.operation, del.text.replaceAll(StringUtils.NEWLINE, "")));
             }

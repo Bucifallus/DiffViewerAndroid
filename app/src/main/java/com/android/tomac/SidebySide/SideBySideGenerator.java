@@ -20,8 +20,6 @@ public class SideBySideGenerator implements ISideBySideDiffGenerator {
         diff_match_patch.Diff thisDiff = pointer.next();
         List<diff_match_patch.Diff> tempDiffs = new LinkedList<> ();
 
-
-
         //loop through diffs, process on EQUAL diff
         while (thisDiff != null) {
             if (thisDiff.operation == diff_match_patch.Operation.EQUAL || thisDiff.operation == diff_match_patch.Operation.LAST) {
@@ -70,7 +68,6 @@ public class SideBySideGenerator implements ISideBySideDiffGenerator {
 
                         getDiff(left, leftLines, i, addNewLineLeft, diff_match_patch.Operation.DELETE, thisDiffEndsWithNewLine && thisDiffStartsWithNewLine);
                         getDiff(right, rightLines, i, addNewLineRight, diff_match_patch.Operation.INSERT, thisDiffEndsWithNewLine && thisDiffStartsWithNewLine);
-
                     }
 
                     for (int i = 0; i < left.size(); i++)

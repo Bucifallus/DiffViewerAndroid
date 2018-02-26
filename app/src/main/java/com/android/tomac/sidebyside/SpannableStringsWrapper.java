@@ -1,4 +1,4 @@
-package com.android.tomac.SidebySide;
+package com.android.tomac.sidebyside;
 
 import android.text.SpannableString;
 

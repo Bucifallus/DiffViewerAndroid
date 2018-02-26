@@ -1,4 +1,4 @@
-package com.android.tomac.SidebySide;
+package com.android.tomac.sidebyside;
 
 import java.util.LinkedList;
 import java.util.List;

@@ -1,4 +1,4 @@
-package com.android.tomac.SidebySide;
+package com.android.tomac.sidebyside;
 
 import android.graphics.Color;
 import android.text.Spannable;

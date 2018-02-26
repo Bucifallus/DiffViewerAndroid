@@ -4,11 +4,11 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="horizontal"
-    tools:context="com.android.tomac.myapplication.com.android.tomac.myapplication.MainActivity">
+    tools:context="com.android.tomac.unittest.com.android.tomac.myapplication.MainActivity">
 
     <!-- view for AdMob Interstitial Ad -->
 
-    <com.android.tomac.myapplication.CustomTextView
+    <com.android.tomac.main.CustomTextView
         android:id="@+id/textView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -19,7 +19,7 @@
 
     <view
         android:id="@+id/view3"
-        class="com.android.tomac.myapplication.Draw"
+        class="com.android.tomac.main.Draw"
         id="@+id/view2"
         layout_height="1000dp"
         layout_width="100dp"
@@ -29,7 +29,7 @@
         android:width="100dp"
         android:height="1000dp" />
 
-    <com.android.tomac.myapplication.CustomTextView
+    <com.android.tomac.main.CustomTextView
         android:id="@+id/textView2"
         android:layout_width="match_parent"
         android:layout_height="match_parent"

@@ -1,0 +1,838 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using CodeCommentDB;
+using Tec.Scs.Core.Logging;
+using Tec.Scs.Core.NLogAdapter;
+using Interop.LinkMapReaderLib;
+using Tec.Scs.Libraries.Standards.MCD.Mcd;
+using Tec.Scs.Libraries.Standards.MCD.utils;
+using System.IO;
+using Tec.Scs.Libraries.Standards.MCD.Mcd.Parameters.Objects;
+using Tec.Scs.Libraries.Standards.MCD.Mcd.ModuleItems.Objects;
+using Tec.Scs.Libraries.Standards.MCD.Mcd.Parameters.Collections;
+using ConvertSystemConstants;
+using Tec.Scs.Libraries.Standards.MCD.Mcd.IfData.Objects;
+using Tec.Scs.Libraries.Standards.MCD.Mcd.ModuleItems.Collections;
+using ASAP2FileGeneratorGen2;
+using Tec.Scs.Libraries.Standards.MCD.Mcd.IfData;
+using Tec.Scs.Libraries.Standards.MCD.Mcd.A2ml.Collections;
+using Tec.Scs.Libraries.Standards.MCD.Mcd.A2ml.Objects;
+using Tec.Scs.Libraries.Standards.MCD.Mcd.Visitor;
+using Tec.Scs.Libraries.MapFile.ComponentsDB;
+
+namespace Asap2FileGeneratorGen2.Data
+{
+    public class DataAccess : IDataAccess
+    {
+        public const string DEFAULT_TEMPLATE_NAME = "A2L_GEN2_TEMPLATE.A2L";
+
+        public static IMCDCompuMethod NO_FORMULA_RAT_COMPU_METHOD;
+        public static IMCDCompuMethod NO_FORMULA_LIN_COMPU_METHOD;
+        public static IMCDCompuMethod IDENTICAL_CONVERSION_RULE;
+
+        private string longId;
+        public string LongId
+        {
+            get { return longId; }
+            set { longId = value; }
+        }
+
+
+        private IMCDA2lFile a2lFile;
+
+        private bool sysc = false;
+        private bool addIfDataFromTemplates = false;
+
+        private bool reReadMapFile = false;
+        public bool ReReadMapFile
+        {
+            get { return reReadMapFile; }
+            set { reReadMapFile = value; }
+        }
+
+
+        private  ILogger logger;
+
+        public void SetLogger(ILogger logger)
+        {
+            this.logger = logger;
+        }
+
+        private MapFileItemsContainer items;
+        public MapFileItemsContainer Items
+        {
+            get 
+            {
+                if (items == null)
+                {
+                    items = readMapFile();
+                }
+
+                return items; 
+            }
+
+            set
+            {
+                this.items = value;
+            }
+
+        }
+
+        private List<String> codeCommentDBsPaths; //at least one needed
+        private Stack<TemplateFile> templatesPaths; //at least one needed
+
+        private string a2lFileToUpdatePath; //can be null
+        public string A2lFileToUpdatePath
+        {
+            get { return a2lFileToUpdatePath; }
+            set { a2lFileToUpdatePath = value; }
+        }
+
+        private List<MapFile> mapFilesPaths; //at least one needed
+        private IA2lDataInfo a2lDataInfo;
+
+        private OperateMode mode = OperateMode.Overwrite;
+        private bool createBandWidthAnnotation = false;
+
+        public OperateMode Mode
+        {
+            get { return mode; }
+            set { mode = value; }
+        }
+
+        private readonly string a2lModuleName = "CPP";
+
+        private CanapeTemplate canapeTemplate;
+        public CanapeTemplate CanapeTemplate
+        {
+            get { return canapeTemplate; }
+            set { canapeTemplate = value; }
+        }
+
+        public bool Sysc
+        {
+            get { return sysc; }
+            set { sysc = value; }
+        }
+
+        public bool CreateBandWidthAnnotation
+        {
+            get
+            {
+                return createBandWidthAnnotation;
+            }
+
+            set
+            {
+                createBandWidthAnnotation = value;
+            }
+        }
+
+        private bool createErrorsForDuplicatedConversionRules = true;
+
+        public List<IRegion> eventExtensionRegions { get; private set; }
+
+        public bool CreateErrorsForDuplicatedConversionRules
+        {
+            get
+            {
+                return createErrorsForDuplicatedConversionRules;
+            }
+
+            set
+            {
+                createErrorsForDuplicatedConversionRules = value;
+            }
+        }
+
+        public DataAccess(string a2lFileToUpdatePath, List<String> codeCommentDBsPaths, Stack<TemplateFile> templatesPaths, List<MapFile> mapFilesPaths, List<IRegion> eventExtensionRegions)
+        {
+            this.codeCommentDBsPaths = new List<string>(codeCommentDBsPaths);
+            this.templatesPaths = templatesPaths == null ? new Stack<TemplateFile>() : templatesPaths;
+           
+            this.mapFilesPaths = new List<MapFile>(mapFilesPaths);
+
+            this.a2lFileToUpdatePath = a2lFileToUpdatePath;
+            this.eventExtensionRegions = new List<IRegion>(eventExtensionRegions);
+        }
+
+        public void AddCodeCommentDB(string codeCommentDB)
+        {
+            this.codeCommentDBsPaths.Add(codeCommentDB);
+        }
+
+        public void AddTemplateFile(TemplateFile templateFile)
+        {
+            this.templatesPaths.Push(templateFile);
+        }
+
+        public void AddMapFile(MapFile mapFile)
+        {
+            this.mapFilesPaths.Add(mapFile);
+        }
+
+        public IEnumerable<CommentDB> ReadCodeComment()
+        {
+            foreach (String codeCommentPath in codeCommentDBsPaths)
+            {
+                CommentSuiteWrapper ccsWrapper = new CommentSuiteWrapper(codeCommentPath);
+                ccsWrapper.Logger = logger;
+                yield return ccsWrapper.read();
+            }
+        }
+
+        public MapFileItemsContainer readMapFile()
+        {
+            MapFileWrapper mFWrapper = new MapFileWrapper(this.mapFilesPaths, a2lFileToUpdatePath, reReadMapFile);
+            mFWrapper.CanapeTemplate = canapeTemplate;
+            mFWrapper.Logger = logger;
+            mFWrapper.readOutFile();
+
+            return mFWrapper.Items;
+        }
+
+        private IMCDA2lFile handleOverwriteParams(IMCDFileIO a2lFileIO, ErrorLogger logger)
+        {
+            if (a2lFileIO == null)
+            {
+                a2lFileIO = new MCDFileIO();
+            }
+
+            if (logger == null)
+            {
+                logger = new NullErrorLogger();
+            }
+
+            a2lFileIO.WriteEncoding = Encoding.GetEncoding(1252);
+            a2lFileIO.Logger = logger;
+
+
+            IMCDA2lFile a2lFile = null;
+
+            if (mode == OperateMode.Update && File.Exists(a2lFileToUpdatePath))
+            { 
+                a2lFile = a2lFileIO.readFile(a2lFileToUpdatePath);
+            }
+            else
+            {
+                a2lFile = new MCDA2lFile();
+                a2lFile.Project = new MCDProject();
+                a2lFile.Project.ShortName = Path.GetFileNameWithoutExtension(a2lFileToUpdatePath);
+                a2lFile.Asap2Version = getDefaultVersion();
+            }
+
+            a2lFile.Project.LongIdentifier = longId;
+            return a2lFile;
+        }
+
+        private IMCDAsap2Version getDefaultVersion()
+        {
+            IMCDAsap2Version vers = new MCDAsap2Version();
+            vers.VersionNo = 1;
+            vers.UpgradeNo = 60;
+            return vers;
+        }
+
+        public IMCDA2lFile readOldA2lFile(IMCDFileIO a2lFileIO)
+        {
+            a2lFile = handleOverwriteParams(a2lFileIO, null);
+            return a2lFile;
+        }
+
+        private IMCDProject loadTemplateFile(MCDVisitor a2lVisitor, TemplateFile tFile, ref string version)
+        {
+            String filePath = tFile.TemplateFilePath;
+            IMCDProject proj = null;
+            IMCDFileIO templateFile = new MCDFileIO();
+            templateFile.WriteEncoding = Encoding.GetEncoding(1252);
+            templateFile.Logger = new NullErrorLogger();
+            try
+            {
+                IMCDA2lFile a2lFile = templateFile.readFile(filePath);
+                if (a2lVisitor != null)
+                {
+                    if (a2lVisitor is AddressUpdaterVisitorBase)
+                    {
+                        (a2lVisitor as AddressUpdaterVisitorBase).UpdateDataType = tFile.UpdateDataType;
+                    }
+                    a2lFile.accept(a2lVisitor);
+                }
+                version = a2lFile.Asap2Version.VersionNo + " " + a2lFile.Asap2Version.UpgradeNo;
+                proj = a2lFile == null ? null : a2lFile.Project;
+            }
+            catch (Exception ex)
+            {
+                logger.Fatal(String.Format("Cannot read template file {0}.{1}", filePath,  ex.Message));
+                Environment.Exit(1);
+            }
+
+            return proj; //test with null Project
+        }
+
+        //Default if_data configuration
+        IMCDIfDataSection moduleIfDataSection = null;
+
+        public void loadTemplateFiles(AddressUpdaterVisitorBase updateVisitor)
+        {
+            if (a2lFile == null || a2lFile.Project == null)
+            {
+                throw new ArgumentException("A2L file cannot be null.");
+            }
+
+            IMCDAsap2Version asap2Version = a2lFile.Asap2Version;
+
+            string firstModuleName = "";
+            string versionStr = asap2Version.VersionNo + " " + asap2Version.UpgradeNo;
+            IMCDModule firstModule = null;
+            while (templatesPaths.Count != 0)
+            {
+                //pop one, we use stacktemplatesPaths.Pop()
+                TemplateFile tFile = templatesPaths.Pop();
+                string templatePath = tFile.TemplateFilePath;
+
+                logger.Info("Loading template file : " + tFile.TemplateFilePath);
+                IMCDProject project = loadTemplateFile(updateVisitor, tFile, ref versionStr);
+                
+                try
+                {
+                    moduleIfDataSection = project.Modules.getItem("CPP").IfDataSections.getItemByIndex(0);
+                }
+                catch (NullReferenceException ex)
+                {
+
+                }
+
+                if (moduleIfDataSection != null)
+                {
+                    EventsCollection.INSTANCE.collectEvents(moduleIfDataSection);
+                }
+
+                if (project == null)
+                {
+                    continue;
+                }
+                MCDModule module = new MCDModule();
+                module.ShortName = a2lModuleName;
+
+                firstModule = firstModule == null ? project.Modules.getEnumerableValues().DefaultIfEmpty(module).First() : firstModule;
+
+                if (string.IsNullOrEmpty(firstModuleName))
+                {
+                    firstModuleName = project.Modules.getEnumerableValues().DefaultIfEmpty(module).First().ShortName; //test if null
+                    module = null;
+                }
+
+                if (project.IncludePaths != null)
+                {
+                    addToIncludePaths(project.IncludePaths.getEnumerableValues().ToArray<string>(), a2lFile.Project);
+                }
+                foreach (IMCDModule tempModule in project.Modules.getEnumerableValues())
+                {
+                    copyModuleInfo(updateVisitor, tempModule, ref firstModule, versionStr, tFile);
+                }
+            }
+
+            NO_FORMULA_RAT_COMPU_METHOD = firstModule.CompuMethods.getItem("NO_FORMULA_RAT");
+            if (NO_FORMULA_RAT_COMPU_METHOD == null)
+            {
+                logger.Info("NO_FORMULA_RAT template not found in templates. Using hardcoded values!!");
+                createHardCodedNoFormulaRatTemplate();
+                firstModule.CompuMethods.add(NO_FORMULA_RAT_COMPU_METHOD);
+            }
+
+            NO_FORMULA_LIN_COMPU_METHOD = firstModule.CompuMethods.getItem("NO_FORMULA_LIN");
+            if (NO_FORMULA_LIN_COMPU_METHOD == null)
+            {
+                logger.Info("NO_FORMULA_LIN template not found in templates. Using hardcoded values!!");
+                createHardCodedNoFormulaLinTemplate();
+                firstModule.CompuMethods.add(NO_FORMULA_LIN_COMPU_METHOD);
+            }
+
+            IDENTICAL_CONVERSION_RULE = firstModule.CompuMethods.getItem("IDENTICAL_CONVERSION_RULE");
+            if (IDENTICAL_CONVERSION_RULE == null)
+            {
+                logger.Info("IDENTICAL_CONVERSION_RULE not found in templates. Using hardcoded values!!");
+                createHardCodedIdenticalFormula();
+
+                firstModule.CompuMethods.add(IDENTICAL_CONVERSION_RULE);
+            }
+
+            a2lFile.Project.Modules.add(firstModule);
+        }
+
+        private void addToIncludePaths(string[] array, IMCDProject a2lFile)
+        {
+            if (a2lFile.IncludePaths == null)
+            {
+                a2lFile.IncludePaths = new CustomStringList();
+            }
+
+            foreach (string includePath in array)
+            {
+                a2lFile.IncludePaths.add(includePath);
+            }
+            
+        }
+
+        private void copyModuleInfo(IMCDVisitor visitor, IMCDModule module, ref IMCDModule finalModule, String version, TemplateFile tFile)
+        {
+            if (finalModule == null)
+            {
+                finalModule = module;
+                return;
+            }
+
+            bool first = finalModule.Equals(module);
+            if (first)
+            {
+                foreach (IMCDMeasCharAxis measCharAxis in module.MeasCharAxisColl.getEnumerableValues())
+                {
+                    AddEventsAndAnnotation(tFile, measCharAxis);
+                    if (measCharAxis is IMCDMeasurement)
+                    {
+                        visitor.visit(measCharAxis as IMCDMeasurement);
+                    } else if (measCharAxis is IMCDCharacteristic)
+                    {
+                        visitor.visit(measCharAxis as IMCDCharacteristic);
+                    } else if (measCharAxis is IMCDAxisPoint)
+                    {
+                        visitor.visit(measCharAxis as IMCDAxisPoint);
+                    }
+                }
+
+                foreach (IMCDCompuMethod cMeth in module.CompuMethods.getEnumerableValues())
+                {
+                    IMCDFormula formula = cMeth.Formula;
+                    if (formula != null)
+                    {
+                        String xFormula = formula.fx;
+
+                        Converter converter = new Converter(xFormula, sysc, isCorrectVersion(version));
+                        cMeth.Formula.fx = converter.Convert();
+
+                        string formulaInv = formula.FormulaInv;
+                        if (!String.IsNullOrEmpty(formulaInv))
+                        {
+                            Converter converterY = new Converter(formulaInv, sysc, isCorrectVersion(version));
+                            cMeth.Formula.FormulaInv = converterY.Convert();
+                        }
+
+                    }
+                }
+
+                if (module.ModPar != null)
+                {
+                    IMCDSystemConstants constants = module.ModPar.SystemConstants;
+
+                    if (constants != null)
+                    {
+                        foreach (IMCDSystemConstant constant in constants.getEnumerableValues())
+                        {
+                            Converter converter = new Converter(constant.Value, sysc, isCorrectVersion(version));
+                            constant.Value = converter.Convert();
+
+                            finalModule.ModPar.SystemConstants.add(constant);
+                        }
+                    }
+                }
+                return;
+            }
+
+            var sections = module.IfDataSections.getItemByIndex(0);
+            var tempEvents = EventsCollection.INSTANCE.collectEventsFromFile(sections);
+
+            foreach (IMCDMeasCharAxis measCharAxis in module.MeasCharAxisColl.getEnumerableValues())
+            {
+                AddEventsAndAnnotation(tFile, measCharAxis, tempEvents.ToList<EventsCollection.MiniEvent>());
+                finalModule.MeasCharAxisColl.AddUnique(measCharAxis);
+            }
+
+            foreach (IMCDCompuTabBase compuTab in module.CompuTabBaseColl.getEnumerableValues())
+            {
+                finalModule.CompuTabBaseColl.add(compuTab);
+            }
+
+            foreach (IMCDCompuMethod cMeth in module.CompuMethods.getEnumerableValues())
+            {
+                IMCDFormula formula = cMeth.Formula;
+                if (formula != null)
+                {
+                    String xFormula = formula.fx;
+
+                    Converter converter = new Converter(xFormula, sysc, isCorrectVersion(version));
+                    cMeth.Formula.fx = converter.Convert();
+
+                    string formulaInv = formula.FormulaInv;
+                    if (!String.IsNullOrEmpty(formulaInv))
+                    {
+                        Converter converterY = new Converter(formulaInv, sysc, isCorrectVersion(version));
+                        cMeth.Formula.FormulaInv = converterY.Convert();
+                    }
+
+                }
+
+                if (!finalModule.CompuMethods.add(cMeth))
+                {
+                    //duplicated compu method, if they are equal log warning, else -> error
+                    IMCDCompuMethod origMethod = finalModule.CompuMethods.getItem(cMeth.ShortName);
+                    ConversionRuleComparer cComparer = new ConversionRuleComparer();
+                    StringBuilder sb = cComparer.Compare(origMethod, cMeth, String.Empty);
+                    if (sb.Length == 0)
+                    {
+                        //duplicated but equal
+                        logger.Warn(cMeth.ShortName + " is duplicated in " + tFile.TemplateFilePath + ". Conversion rules are equal.");
+                    } else
+                    {
+                        if (CreateErrorsForDuplicatedConversionRules)
+                        {
+                            logger.Fatal(cMeth.ShortName + " is duplicated in " + tFile.TemplateFilePath + ". Conversion rules are different: " + sb.ToString());
+                        } else
+                        {
+                            logger.Warn(cMeth.ShortName + " is duplicated in " + tFile.TemplateFilePath + ". Conversion rules are different: " + sb.ToString());
+                        }
+                    }
+                }
+            }
+
+            foreach (IMCDUnit unit in module.Units.getEnumerableValues())
+            {
+                finalModule.Units.add(unit);
+            }
+
+            foreach (IMCDRecordLayout rLayout in module.RecordLayouts.getEnumerableValues())
+            {
+                finalModule.RecordLayouts.add(rLayout);
+            }
+
+            if (finalModule.A2ml == null)
+            {
+                finalModule.A2ml = module.A2ml;
+            }
+
+            foreach (IMCDFunction function in module.Functions.getEnumerableValues())
+            {
+                finalModule.Functions.add(function);
+            }
+
+            foreach (IMCDGroup mcdGroup in module.Groups.getEnumerableValues())
+            {
+                for (int i = 0; mcdGroup.RefCharacteristic != null && i < mcdGroup.RefCharacteristic.getCount(); i++)
+                {
+                    if (!module.MeasCharAxisColl.containsItemWithName(mcdGroup.RefCharacteristic.getItemByIndex(i)))
+                    {
+                        mcdGroup.RefCharacteristic.remove(i);
+                    }
+                }
+
+                for (int i = 0; mcdGroup.RefMeasurement != null && i < mcdGroup.RefMeasurement.getCount(); i++)
+                {
+                    if (!module.MeasCharAxisColl.containsItemWithName(mcdGroup.RefMeasurement.getItemByIndex(i)))
+                    {
+                        mcdGroup.RefMeasurement.remove(i);
+                    }
+                }
+
+                HandleGroups(finalModule.Groups, mcdGroup);
+            }
+
+            if (finalModule.ModCommon == null)
+            {
+                finalModule.ModCommon = module.ModCommon;
+            }
+
+            if (finalModule.ModPar == null)
+            {
+                finalModule.ModPar = module.ModPar;
+            }
+            else if (module.ModPar != null)
+            {
+                IMCDSystemConstants constants = module.ModPar.SystemConstants;
+
+                if (constants != null)
+                {
+                    foreach (IMCDSystemConstant constant in constants.getEnumerableValues())
+                    {
+                        Converter converter = new Converter(constant.Value, sysc, isCorrectVersion(version));
+                        constant.Value = converter.Convert();
+
+                        finalModule.ModPar.SystemConstants.add(constant);
+                    }
+                }
+            }
+
+            if (addIfDataFromTemplates)
+            {
+                foreach (IMCDIfDataSection ifDataSect in module.IfDataSections.getEnumerableValues())
+                {
+                    finalModule.IfDataSections.add(ifDataSect);
+                }
+            }
+        }
+        private void AddEventsAndAnnotation(TemplateFile tFile, IMCDMeasCharAxis measCharAxis, List<EventsCollection.MiniEvent> events = null)
+        {
+            if (events == null)
+            {
+                HandleEvents(tFile, measCharAxis);
+            } else
+            {
+                HandleEvents(tFile, measCharAxis, events);
+            }
+
+            if (createBandWidthAnnotation)
+            {
+                int decValue = getDecimalBandWidth(measCharAxis);
+
+                IMCDAnnotation annotation = MapDataTypes.getAnnotationFormula(measCharAxis, decValue);
+                if (annotation != null)
+                {
+                    String existingAnnotation = annotation.AnnotationText.getItemByIndex(0);
+                    existingAnnotation = existingAnnotation.Insert(0, Path.GetFileName(tFile.TemplateFilePath) + "\t");
+
+                    annotation.AnnotationText.remove(0);
+                    annotation.AnnotationText.insert(0, "\"" + existingAnnotation + "\"");
+
+                    measCharAxis.Annotations.add(annotation);
+                }
+            }
+        }
+
+        //private void AddEventsAndAnnotation(TemplateFile tFile, IMCDMeasCharAxis measCharAxis)
+        //{
+        //    HandleEvents(tFile, measCharAxis);
+        //    if (createBandWidthAnnotation)
+        //    {
+        //        int decValue = getDecimalBandWidth(measCharAxis);
+
+        //        IMCDAnnotation annotation = MapDataTypes.getAnnotationFormula(measCharAxis, decValue);
+        //        if (annotation != null)
+        //        {
+        //            String existingAnnotation = annotation.AnnotationText.getItemByIndex(0);
+        //            existingAnnotation = existingAnnotation.Insert(0, Path.GetFileName(tFile.TemplateFilePath) + "\t");
+
+        //            annotation.AnnotationText.remove(0);
+        //            annotation.AnnotationText.insert(0, "\"" + existingAnnotation + "\"");
+
+        //            measCharAxis.Annotations.add(annotation);
+        //        }
+        //    }
+        //}
+
+        private static int getDecimalBandWidth(IMCDMeasCharAxis measCharAxis)
+        {
+            int decValue = 0;
+            try
+            {
+                var f = measCharAxis.IfDataSections.getEnumerableValues().FirstOrDefault(i => i.VariableDaqEvent != null);
+                if (f == null)
+                {
+                    return 1;
+                }
+                String ev = f.VariableDaqEvent.DefaultEventList.getItemByIndex(0);
+                int ms = (int)(EventsCollection.INSTANCE.getTimeUnitByChannelNr(ev) / Math.Pow(10, 6));
+                decValue = int.Parse(ms.ToString(), System.Globalization.NumberStyles.HexNumber);
+            }
+            catch
+            {
+                decValue = 0;
+            }
+
+            return decValue;
+        }
+
+        private void HandleEvents(TemplateFile tFile, IMCDMeasCharAxis measCharAxis, List<EventsCollection.MiniEvent> events)
+        {
+            for (int i = 0; i < measCharAxis.IfDataSections.getCount(); i++)
+            {
+                IMCDIfDataSection section = measCharAxis.IfDataSections.getItemByIndex(i);
+
+                if (section.FixedDaqEvent != null || section.VariableDaqEvent != null)
+                {
+                    //XCP
+                    if (tFile.OverwriteEvents)
+                    {
+                        section.FixedDaqEvent = null;
+                        section.VariableDaqEvent = null;
+                        measCharAxis.IfDataSections.remove(i);
+                    }
+                    else
+                    {
+                        // in the final a2l file, the correct event ID might be different, we need to update by time 
+                        try {
+                            string eventOldChannelNr = section.VariableDaqEvent.DefaultEventList.getItemByIndex(0);
+                            if (!string.IsNullOrEmpty(eventOldChannelNr))
+                            {
+                                int timeUnit = events.getTimeUnitByChannelNr(eventOldChannelNr); // units are in MS, divine by 10^6
+                                timeUnit = (int)(timeUnit / Math.Pow(10, 6));
+
+                                section.FixedDaqEvent = null;
+                                section.VariableDaqEvent = null;
+                                measCharAxis.IfDataSections.remove(i);
+
+                                EventsInformation ev = new EventsInformation();
+                                ev.handleEventAndLinkMapSections(measCharAxis, this.eventExtensionRegions, timeUnit.ToString(), true);
+
+                                return;
+                            }
+                        } catch (Exception ex)
+                        {
+                            logger.Error("Cannot determine default event time unit for + " + measCharAxis.ShortName);
+                        }
+                    }
+                }
+
+            }
+
+            if (measCharAxis is IMCDMeasurement && tFile != null && tFile.TemplateFileEvent != "0")
+            {
+                EventsInformation ev = new EventsInformation();
+                //ev.handleEventAndLinkMapSections(measCharAxis, tFile.TemplateFileEvent, true);
+                ev.handleEventAndLinkMapSections(measCharAxis, this.eventExtensionRegions, tFile.TemplateFileEvent, true);
+            }
+        }
+
+        private void HandleEvents(TemplateFile tFile, IMCDMeasCharAxis measCharAxis)
+        {
+            for (int i = 0; i < measCharAxis.IfDataSections.getCount(); i++)
+            {
+                IMCDIfDataSection section = measCharAxis.IfDataSections.getItemByIndex(i);
+
+                if (section.FixedDaqEvent != null || section.VariableDaqEvent != null)
+                {
+                    //XCP
+                    if (tFile.OverwriteEvents)
+                    {
+                        section.FixedDaqEvent = null;
+                        section.VariableDaqEvent = null;
+                        measCharAxis.IfDataSections.remove(i);
+                    } else
+                    {
+                       //do nothing
+                    }
+                }
+
+            }
+
+            if (measCharAxis is IMCDMeasurement && tFile != null && tFile.TemplateFileEvent != "0")
+            {
+                EventsInformation ev = new EventsInformation();
+                //ev.handleEventAndLinkMapSections(measCharAxis, tFile.TemplateFileEvent, true);
+                ev.handleEventAndLinkMapSections(measCharAxis, this.eventExtensionRegions, tFile.TemplateFileEvent, true);
+            }
+        }
+
+        private void HandleGroups(IMCDGroups groups, IMCDGroup currentGroup)
+        {
+            bool grExists = !groups.add(currentGroup);
+            if (grExists)
+            {
+                IMCDGroup existingGroup = groups.getItem(currentGroup.ShortName);
+                CopyObjects(existingGroup, currentGroup);
+                for (int i = 0; currentGroup.SubGroup != null && i < currentGroup.SubGroup.getCount(); i++)
+                {
+                    existingGroup.SubGroup.add(currentGroup.SubGroup.getItemByIndex(i));
+                }
+            }
+        }
+
+        private void CopyObjects(IMCDGroup mCDDbGroupFrom, IMCDGroup mCDDbGroupTo)
+        {
+            if (mCDDbGroupTo.RefCharacteristic != null)
+            {
+                if (mCDDbGroupFrom.RefCharacteristic == null)
+                {
+                    mCDDbGroupFrom.RefCharacteristic = new CustomStringList();
+                }
+                for (int looper = 0; looper < mCDDbGroupTo.RefCharacteristic.getCount(); looper++)
+                {
+                    mCDDbGroupFrom.RefCharacteristic.add(mCDDbGroupTo.RefCharacteristic.getItemByIndex(looper));
+                }
+            }
+
+            if (mCDDbGroupTo.RefMeasurement != null)
+            {
+                if (mCDDbGroupFrom.RefMeasurement == null)
+                {
+                    mCDDbGroupFrom.RefMeasurement = new CustomStringList();
+                }
+                for (int looper = 0; looper < mCDDbGroupTo.RefMeasurement.getCount(); looper++)
+                {
+                    mCDDbGroupFrom.RefMeasurement.add(mCDDbGroupTo.RefMeasurement.getItemByIndex(looper));
+                }
+            }
+        }
+
+        private static bool isCorrectVersion(string version)
+        {
+            if (String.IsNullOrEmpty(version.Trim()))
+            {
+                return false;
+            }
+
+            string[] values = version.Split(' ');
+            if (values.Length != 2)
+            {
+                return false;
+            }
+
+            string upgNoAsTxt = values[1];
+            int upgNo = 0;
+            bool isNr = int.TryParse(upgNoAsTxt, out upgNo);
+
+            if (isNr)
+            {
+                if (upgNo <= 51)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public static void createHardCodedNoFormulaRatTemplate()
+        {
+            NO_FORMULA_RAT_COMPU_METHOD = new MCDCompuMethod();
+            NO_FORMULA_RAT_COMPU_METHOD.ShortName = "NO_FORMULA_RAT";
+            NO_FORMULA_RAT_COMPU_METHOD.Unit = "";
+            NO_FORMULA_RAT_COMPU_METHOD.LongIdentifier = "RATIONAL FUNCTION";
+            NO_FORMULA_RAT_COMPU_METHOD.ConversionType = Tec.Scs.Libraries.Standards.MCD.Mcd.Enums.ConversionType.RAT_FUNC;
+            NO_FORMULA_RAT_COMPU_METHOD.Format = "%6.2";
+            MCDCoeffs coeffs = new MCDCoeffs();
+            coeffs.a = 0;
+            coeffs.b = 1;
+            coeffs.c = 0;
+            coeffs.d = 0;
+            coeffs.e = 0;
+            coeffs.f = 1;
+
+            NO_FORMULA_RAT_COMPU_METHOD.Coeffs = coeffs;
+        }
+
+        public static void createHardCodedNoFormulaLinTemplate()
+        {
+            NO_FORMULA_LIN_COMPU_METHOD = new MCDCompuMethod();
+            NO_FORMULA_LIN_COMPU_METHOD.ShortName = "NO_FORMULA_LIN";
+            NO_FORMULA_LIN_COMPU_METHOD.Unit = "";
+            NO_FORMULA_LIN_COMPU_METHOD.LongIdentifier = "LINEAR FUNCTION";
+            NO_FORMULA_LIN_COMPU_METHOD.ConversionType = Tec.Scs.Libraries.Standards.MCD.Mcd.Enums.ConversionType.LINEAR;
+            NO_FORMULA_LIN_COMPU_METHOD.Format = "%6.2";
+            IMCDCoeffsLinear coeffs = new MCDCoeffsLinear();
+            coeffs.a = 1;
+            coeffs.b = 0;
+
+            NO_FORMULA_LIN_COMPU_METHOD.CoeffsLinear = coeffs;
+        }
+
+        private void createHardCodedIdenticalFormula()
+        {
+            IDENTICAL_CONVERSION_RULE = new MCDCompuMethod();
+            IDENTICAL_CONVERSION_RULE.ShortName = "IDENTICAL_CONVERSION_RULE";
+            IDENTICAL_CONVERSION_RULE.ConversionType = Tec.Scs.Libraries.Standards.MCD.Mcd.Enums.ConversionType.IDENTICAL;
+            IDENTICAL_CONVERSION_RULE.Unit = String.Empty;
+            IDENTICAL_CONVERSION_RULE.Format = "%6.2";
+        }
+
+    }
+}

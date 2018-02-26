@@ -1,0 +1,142 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>8.0.30703</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{84A80621-2EFB-4289-97BE-B7AA7E7A2D27}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Asap2FileGeneratorGen2.Data</RootNamespace>
+    <AssemblyName>Asap2FileGeneratorGen2.Data</AssemblyName>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <CodeAnalysisRuleSet>Asap2FileGeneratorGen2.Data.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <CodeAnalysisRuleSet>Asap2FileGeneratorGen2.Data.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x86'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x86\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisIgnoreBuiltInRuleSets>true</CodeAnalysisIgnoreBuiltInRuleSets>
+    <CodeAnalysisIgnoreBuiltInRules>true</CodeAnalysisIgnoreBuiltInRules>
+    <CodeAnalysisRuleSet>Asap2FileGeneratorGen2.Data.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x86'">
+    <OutputPath>bin\x86\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisIgnoreBuiltInRuleSets>true</CodeAnalysisIgnoreBuiltInRuleSets>
+    <CodeAnalysisIgnoreBuiltInRules>true</CodeAnalysisIgnoreBuiltInRules>
+    <UseVSHostingProcess>true</UseVSHostingProcess>
+    <CodeAnalysisRuleSet>Asap2FileGeneratorGen2.Data.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="CodeCommentDBGen2, Version=2.0.1.0, Culture=neutral, PublicKeyToken=3718fb87c07fa974, processorArchitecture=x86">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\Libraries\CodeCommentDBGen2.dll</HintPath>
+    </Reference>
+    <Reference Include="Interop.LinkMapReaderLib">
+      <HintPath>..\..\Libraries\Interop.LinkMapReaderLib.dll</HintPath>
+      <EmbedInteropTypes>False</EmbedInteropTypes>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+    <Reference Include="Tec.Scs.Core.Logging">
+      <HintPath>..\..\Libraries\Tec.Scs.Core.Logging.dll</HintPath>
+    </Reference>
+    <Reference Include="Tec.Scs.Core.NLogAdapter">
+      <HintPath>..\..\Libraries\Tec.Scs.Core.NLogAdapter.dll</HintPath>
+    </Reference>
+    <Reference Include="Tec.Scs.Libraries.MapFile.BinaryReader">
+      <HintPath>..\..\Libraries\Tec.Scs.Libraries.MapFile.BinaryReader.dll</HintPath>
+    </Reference>
+    <Reference Include="Tec.Scs.Libraries.MapFile.ComponentsDB">
+      <HintPath>..\..\Libraries\Tec.Scs.Libraries.MapFile.ComponentsDB.dll</HintPath>
+    </Reference>
+    <Reference Include="Tec.Scs.Libraries.Standards.MCD, Version=4.0.1.17851, Culture=neutral, PublicKeyToken=37fd03c8f599553a, processorArchitecture=x86">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\Libraries\Tec.Scs.Libraries.Standards.MCD.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="A2LDataInfo.cs" />
+    <Compile Include="AddressUpdaterVisitorBase.cs" />
+    <Compile Include="BiDictionary.cs" />
+    <Compile Include="EventExceptionDictionary.cs" />
+    <Compile Include="CanapeTemplate.cs" />
+    <Compile Include="CommentSuiteWrapper.cs" />
+    <Compile Include="ConversionRuleComparer.cs" />
+    <Compile Include="DataAccess.cs" />
+    <Compile Include="EventsCollection.cs" />
+    <Compile Include="EventsInformation.cs" />
+    <Compile Include="Events\EventSectionInfo.cs" />
+    <Compile Include="IA2lDataInfo.cs" />
+    <Compile Include="IDataAccess.cs" />
+    <Compile Include="KeyValuePair.cs" />
+    <Compile Include="MapDataTypes.cs" />
+    <Compile Include="MapFile.cs" />
+    <Compile Include="MapFileItemsContainer.cs" />
+    <Compile Include="MapFileWrapper.cs" />
+    <Compile Include="MCDExtensions.cs" />
+    <Compile Include="NullErrorLogger.cs" />
+    <Compile Include="ObjectExtension.cs" />
+    <Compile Include="OperateMode.cs" />
+    <Compile Include="ParserClass.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Region\EventExtensionRegion.cs" />
+    <Compile Include="Region\IEventExtensionRegion.cs" />
+    <Compile Include="TemplateFile.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\ConvertSystemConstants\AddSyscToCompuMethods.csproj">
+      <Project>{EBB08194-048D-44F1-A60F-AB79BE1A7F25}</Project>
+      <Name>AddSyscToCompuMethods</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\FilterDB\FilterDB.csproj">
+      <Project>{e93e5778-5b80-457a-a511-88c12d188cad}</Project>
+      <Name>FilterDB</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Asap2FileGeneratorGen2.Data.ruleset" />
+    <None Include="packages.config" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

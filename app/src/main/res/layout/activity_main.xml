@@ -3,10 +3,21 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="horizontal"
-    tools:context="com.android.tomac.unittest.com.android.tomac.myapplication.MainActivity">
+    tools:context="com.android.tomac.main.MainActivity">
 
     <!-- view for AdMob Interstitial Ad -->
+    <com.example.tomac.myapplication.LineNrTextView
+        android:layout_width="300dp"
+        android:layout_height="300dp"
+        android:background="#ccc"
+        android:paddingBottom="40dp"
+        android:paddingLeft="20dp"
+        app:exampleColor="#33b5e5"
+        app:exampleDimension="24sp"
+        app:exampleDrawable="@android:drawable/ic_menu_add"
+        app:exampleString="Hello, LineNrTextView" />
 
     <com.android.tomac.main.CustomTextView
         android:id="@+id/textView"

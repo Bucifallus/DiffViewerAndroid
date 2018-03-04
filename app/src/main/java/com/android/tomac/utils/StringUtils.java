@@ -28,7 +28,6 @@ public class StringUtils {
             lines.add(line);
             lineCount++;
             lineStart = lineEnd + 1;
-
         }
         return lines;
     }

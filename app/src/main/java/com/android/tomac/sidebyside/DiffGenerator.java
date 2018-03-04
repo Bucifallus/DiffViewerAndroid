@@ -8,10 +8,10 @@ import android.text.style.BackgroundColorSpan;
 import java.util.LinkedList;
 import java.util.List;
 
-import com.android.tomac.algorithm.diff_match_patch;
+import com.android.tomac.algorithm.DiffBuilder;
+import com.android.tomac.algorithm.IDiffBuilder;
 
 import static com.android.tomac.algorithm.diff_match_patch.*;
-import static com.android.tomac.algorithm.diff_match_patch.Operation.LAST;
 
 /**
  * Created by cosmin on 18.02.2018.
@@ -26,6 +26,7 @@ public class DiffGenerator implements IDiffGenerator {
         private int equalCharColor = Color.WHITE;
 
         ISideBySideDiffGenerator iDiffGenerator = new SideBySideGenerator();
+        DiffBuilder diffBuilder = new DiffBuilder();
 
         private Builder(){
 
@@ -64,6 +65,11 @@ public class DiffGenerator implements IDiffGenerator {
             this.equalCharColor = equalCharColor;
             return this;
         }
+
+        public Builder setDiffBuilder(DiffBuilder diffBuilder) {
+            this.diffBuilder = diffBuilder;
+            return this;
+        }
     }
 
     private final short editCost;
@@ -75,7 +81,7 @@ public class DiffGenerator implements IDiffGenerator {
     List<Diff> leftDiffs = new LinkedList<>();
     List<Diff> rightDiffs = new LinkedList<>();
     ISideBySideDiffGenerator iDiffGenerator;
-    diff_match_patch dmp;
+    IDiffBuilder diffBuilder;
 
     public DiffGenerator(Builder builder) {
         editCost = builder.editCost;
@@ -84,6 +90,7 @@ public class DiffGenerator implements IDiffGenerator {
         deletedCharColor = builder.deletedCharColor;
         insertedCharColor = builder.insertedCharColor;
         equalCharColor = builder.equalCharColor;
+        diffBuilder = builder.diffBuilder;
     }
 
     public static Builder create() {
@@ -149,18 +156,7 @@ public class DiffGenerator implements IDiffGenerator {
         return sWrapper;
     }
 
-    private LinkedList<Diff> difference(String leftText, String rightText) {
-        if (dmp == null) {
-            dmp = new diff_match_patch();
-            dmp.Diff_EditCost = editCost;
-            dmp.Diff_Timeout = timeOut;
-        }
-
-        LinkedList<Diff> diffs = dmp.diff_main(leftText, rightText, false);
-        dmp.diff_cleanupEfficiency(diffs);
-
-        diffs.add(new Diff(LAST, ""));
-
-        return diffs;
+    public LinkedList<Diff> difference(String leftText, String rightText) {
+        return diffBuilder.difference(leftText, rightText, editCost, timeOut);
     }
 }

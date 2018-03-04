@@ -48,6 +48,8 @@ public class CustomTextView extends AppCompatTextView implements IScrollNotifier
     @Override
     public void draw(Canvas canvas) {
 
+        int baseline = getBaseline();
+
         LinearLayout.LayoutParams lp =
                 (LinearLayout.LayoutParams) this.getLayoutParams();
         int lineCount = getLayout().getLineCount();
@@ -58,6 +60,7 @@ public class CustomTextView extends AppCompatTextView implements IScrollNotifier
         int pixelMargin = (int) (lp.topMargin / scale + 0.5f);
 
         for (int i = 0; i < lineCount; i++) {
+            baseline += getLineHeight();
 
             rect.top = (getLayout().getLineTop(i));
             rect.left = (int) getLayout().getLineLeft(i);
@@ -65,8 +68,9 @@ public class CustomTextView extends AppCompatTextView implements IScrollNotifier
             rect.bottom = (int) (getLayout().getLineBottom(i) - ((i + 1 == lineCount) ? 0 : getLayout().getSpacingAdd()));
 
             canvas.drawLine(rect.left, ((rect.bottom - rect.top) / 2) + rect.top, rect.right, ((rect.bottom - rect.top) / 2) + rect.top , paint);
-            //canvas.drawRect(rect, paint);
+            canvas.drawText("" + (i+1), rect.left, baseline, paint);
         }
+
         super.draw(canvas);
     }
 }

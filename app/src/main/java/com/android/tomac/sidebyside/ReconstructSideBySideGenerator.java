@@ -2,7 +2,7 @@ package com.android.tomac.sidebyside;
 
 import com.android.tomac.utils.StringUtils;
 import com.android.tomac.algorithm.diff_match_patch.Diff;
-import com.android.tomac.utils.CorrectIterator;
+import com.android.tomac.utils.CustomIterator;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -23,12 +23,8 @@ public class ReconstructSideBySideGenerator implements ISideBySideDiffGenerator 
     }
 
     private class Line {
-        List<Diff> getDiffs() {
+        private List<Diff> getDiffs() {
             return delDiffs;
-        }
-
-        public void setDelDiffs(List<Diff> delDiffs) {
-            this.delDiffs = delDiffs;
         }
 
         List<Diff> delDiffs = new LinkedList<>();
@@ -40,8 +36,7 @@ public class ReconstructSideBySideGenerator implements ISideBySideDiffGenerator 
         @Override
         public String toString() {
             StringBuilder sb = new StringBuilder();
-            for (Diff d :
-                    delDiffs) {
+            for (Diff d : delDiffs) {
                 sb.append(d.text);
             }
             return sb.toString();
@@ -51,90 +46,84 @@ public class ReconstructSideBySideGenerator implements ISideBySideDiffGenerator 
     @Override
     public SideBySideDiffs getDiffs(List<Diff> diffs) {
         SideBySideDiffs sDiffs = new SideBySideDiffs();
-        diffs.add(new Diff(LAST, ""));
 
-        ListIterator<Diff> pointer = diffs.listIterator();
-        Diff thisDiff = pointer.next();
-
-        LinkedList<Diff> delDiffs = new LinkedList<>();
-        LinkedList<Diff> insDiffs = new LinkedList<>();
-
-        //loop through diffs, process on EQUAL diff
-        while (thisDiff != null) {
-            switch (thisDiff.operation) {
-                case DELETE:
-                    delDiffs.add(thisDiff);
-                    break;
-                case INSERT:
-                    insDiffs.add(thisDiff);
-                    break;
-                case EQUAL:
-                    delDiffs.add(thisDiff);
-                    insDiffs.add(thisDiff);
-                    break;
-                case VIRTUAL:
-                    break;
-                case LAST:
-                    break;
-            }
-            thisDiff = pointer.hasNext() ? pointer.next() : null;
+        if (diffs == null) {
+            diffs = new LinkedList<>();
         }
 
-        List<Line> leftLines = getLines(delDiffs);
-        List<Line> rightLines = getLines(insDiffs);
+        diffs.add(new Diff(VIRTUAL, ""));
 
-        int max =  Math.max(leftLines.size(), rightLines.size());
-        Pointer rightPtr, leftPtr;
-        rightPtr = new Pointer();
-        leftPtr = new Pointer();
+        if (diffs.size() == 1) { //if null or empty
+            sDiffs.add(new SideBySideDiff(diffs.get(0), diffs.get(0)));
+        } else {
+            ListIterator<Diff> pointer = diffs.listIterator();
+            Diff thisDiff = pointer.next();
 
+            LinkedList<Diff> delDiffs = new LinkedList<>(); //left
+            LinkedList<Diff> insDiffs = new LinkedList<>(); //right
 
+            //construct left/right diffs
+            while (thisDiff != null) {
+                switch (thisDiff.operation) {
+                    case DELETE:
+                        delDiffs.add(thisDiff);
+                        break;
+                    case INSERT:
+                        insDiffs.add(thisDiff);
+                        break;
+                    case EQUAL:
+                        delDiffs.add(thisDiff);
+                        insDiffs.add(thisDiff);
+                        break;
+                    case LAST:
+                        delDiffs.add(thisDiff);
+                        insDiffs.add(thisDiff);
+                        break;
+                }
+                thisDiff = pointer.hasNext() ? pointer.next() : null;
+            }
+
+            List<Line> leftLines = getLines(delDiffs);
+            List<Line> rightLines = getLines(insDiffs);
+
+            int max = Math.max(leftLines.size(), rightLines.size());
+
+            align(leftLines, rightLines, max);
+            align(rightLines, leftLines, max);
+
+            getsDiffsFromLines(sDiffs, leftLines, rightLines);
+            sDiffs.add(new SideBySideDiff(new Diff(LAST, ""), new Diff(LAST, "")));
+        }
+
+        return sDiffs;
+    }
+
+    private void align(List<Line> toAlignLines, List<Line> alignWithLines, int max) {
+        Pointer rightPtr = new Pointer();
         for (int i = 0; i < max; i++) {
             Line dummy = new Line();
             dummy.getDiffs().add(new Diff(VIRTUAL, ""));
-            Line left = i >= leftLines.size() ? dummy : leftLines.get(i);
+            Line left = i >= toAlignLines.size() ? dummy : toAlignLines.get(i);
 
             if (left.getDiffs().get(0).operation == EQUAL) {
                 //could be anchor, search for it in right
-                Pointer searchPtr = search(left.getDiffs().get(0), rightLines, rightPtr);
+                Pointer searchPtr = search(left.getDiffs().get(0), alignWithLines, rightPtr);
                 if (searchPtr.startLineIndex != i && searchPtr != null) {
                     //align
                     for (int j = 0; j < i - searchPtr.startLineIndex; j++) {
-                        rightLines.add(searchPtr.startLineIndex, dummy);
+                        alignWithLines.add(searchPtr.startLineIndex, dummy);
                     }
 
                 }
                 rightPtr.startLineIndex = i;
             }
         }
-
-        for (int i = 0; i < max; i++) {
-            Line dummy = new Line();
-            dummy.getDiffs().add(new Diff(VIRTUAL, ""));
-            Line right = i >= rightLines.size() ? dummy : rightLines.get(i);
-
-            if (right.getDiffs().get(0).operation == EQUAL) {
-                //could be anchor, search for it in right
-                Pointer searchPtr = search(right.getDiffs().get(0), leftLines, leftPtr);
-                if (searchPtr.startLineIndex != i && leftPtr != null) {
-                    //align
-                    for (int j = 0; j < i - searchPtr.startLineIndex; j++) {
-                        leftLines.add(searchPtr.startLineIndex, dummy);
-                    }
-
-                }
-                leftPtr.startLineIndex=i;
-            }
-        }
-
-        getsDiffsFromLines(sDiffs, leftLines, rightLines);
-        return sDiffs;
     }
 
-    private Pointer search(Diff diff, List<Line> rightLines, Pointer searchPointer) {
+    private Pointer search(Diff diff, List<Line> lines, Pointer searchPointer) {
         Pointer p = new Pointer();
-        for (int i = searchPointer.startLineIndex + 1; i < rightLines.size(); i++) {
-            Line l = rightLines.get(i);
+        for (int i = searchPointer.startLineIndex + 1; i < lines.size(); i++) {
+            Line l = lines.get(i);
             List<Diff> diffs =  l.getDiffs();
             for (int j = 0; j < diffs.size(); j++) {
                 boolean isPresent = diff.equals(diffs.get(j));
@@ -166,37 +155,30 @@ public class ReconstructSideBySideGenerator implements ISideBySideDiffGenerator 
         }
     }
 
-    private List<Line> getLines(LinkedList<Diff> delDiffs) {
+    private List<Line> getLines(LinkedList<Diff> diffs) {
         List<Line> lines = new LinkedList<>();
-        Line l = new Line();
-
-        CorrectIterator<Diff> pointer = new CorrectIterator<>(delDiffs.listIterator());
-        Diff del = pointer.next();
+        Line l = new Line(); //add diffs to this temp line
         boolean prevEndsWithNewLine = false;
         boolean lineIsCompleted = false;
-        while (del != null) {
-            if (del.text.contains(StringUtils.NEWLINE)) {
-                List<String> split = StringUtils.split(del.text);
-                boolean endWithNewLine = del.text.endsWith(StringUtils.NEWLINE);
+
+        CustomIterator<Diff> pointer = new CustomIterator<>(diffs.listIterator());
+        Diff diff = pointer.next();
+
+        while (diff != null) {
+            if (diff.text.contains(StringUtils.NEWLINE)) {
+                List<String> split = StringUtils.split(diff.text);
+                boolean endWithNewLine = diff.text.endsWith(StringUtils.NEWLINE);
                 if (pointer.hasPrevious() && !prevEndsWithNewLine) {
                     Diff prevDiff = pointer.previous();
                     prevEndsWithNewLine = prevDiff.text.endsWith(StringUtils.NEWLINE);
                     pointer.next();
                 }
 
-                //if previous is not finished add to temp line first line
-                //if this one is not finished add to temp
                 for (int i = 0; i < split.size(); i++) {
-                    if (i == 0 && !lineIsCompleted) {
-                        l.getDiffs().add(new Diff(del.operation, split.get(i).replaceAll(StringUtils.NEWLINE, "")));
-                        Line tempL = new Line();
-                        tempL.getDiffs().addAll(l.getDiffs());
-                        lines.add(tempL);
-                        l.clear();
-                    } else if (i == split.size() - 1 && !endWithNewLine) {
-                        l.getDiffs().add(new Diff(del.operation, split.get(i).replaceAll(StringUtils.NEWLINE, "")));
+                   if (i == split.size() - 1 && !endWithNewLine) {
+                        l.getDiffs().add(new Diff(diff.operation, split.get(i).replaceAll(StringUtils.NEWLINE, "")));
                     } else {
-                        l.getDiffs().add(new Diff(del.operation, split.get(i).replaceAll(StringUtils.NEWLINE, "")));
+                        l.getDiffs().add(new Diff(diff.operation, split.get(i).replaceAll(StringUtils.NEWLINE, "")));
                         Line tempL = new Line();
                         tempL.getDiffs().addAll(l.getDiffs());
                         lines.add(tempL);
@@ -206,10 +188,16 @@ public class ReconstructSideBySideGenerator implements ISideBySideDiffGenerator 
 
                 lineIsCompleted = endWithNewLine;
             } else {
-
-                l.getDiffs().add(new Diff(del.operation, del.text.replaceAll(StringUtils.NEWLINE, "")));
+                l.getDiffs().add(new Diff(diff.operation, diff.text.replaceAll(StringUtils.NEWLINE, "")));
             }
-            del = pointer.hasNext() ? pointer.next() : null;
+            diff = pointer.hasNext() ? pointer.next() : null;
+        }
+
+        if (l.getDiffs().size() != 0) {
+            Line tempL = new Line();
+            tempL.getDiffs().addAll(l.getDiffs());
+            lines.add(tempL);
+            l.clear();
         }
 
         return lines;

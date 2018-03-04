@@ -57,15 +57,14 @@ public class MainActivity extends AppCompatActivity {
         cTextView.setText(spannableStrings.getLeftText());
         cTextView2.setText(spannableStrings.getRightText());
 
-
         draw =  (Draw) findViewById(R.id.view3);
         draw.setRelativeTextViewer(cTextView);
     }
 
     @NonNull
     private void getText() {
-        InputStream is = getResources().openRawResource(R.raw.file3);
-        InputStream is2 = getResources().openRawResource(R.raw.file4);
+        InputStream is = getResources().openRawResource(R.raw.file9);
+        InputStream is2 = getResources().openRawResource(R.raw.file10);
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(is));
         StringBuilder out = new StringBuilder();
